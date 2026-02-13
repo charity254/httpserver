@@ -1,6 +1,6 @@
 # Simple Go HTTP API
 
-A basic HTTP API built with Go that demonstrates fundamental web server concepts with JSON responses.
+A basic HTTP API built with Go that demonstrates fundamental web server concepts including JSON responses, query parameters, request body parsing, and HTTP method validation.
 
 ## What the Service Does
 
@@ -9,14 +9,27 @@ This is a simple HTTP server with multiple endpoints that return JSON responses:
 - **`/`** - Welcome message
 - **`/health`** - Returns the service health status
 - **`/status`** - Returns service status with uptime information
-- **`/hello`** - Returns a personalized greeting based on a name parameter
+- **`/hello`** - Returns a personalized greeting from query parameters (GET)
+- **`/greet`** - Returns a personalized greeting from JSON body (POST)
+
+## Features
+
+- ✅ JSON request and response handling
+- ✅ Query parameter parsing
+- ✅ Request body parsing with validation
+- ✅ HTTP method validation (GET/POST)
+- ✅ Proper error handling with status codes
+- ✅ Reusable error response function
+- ✅ Service uptime tracking
+- ✅ Clean code organization with separate handler file
 
 ## Project Structure
 
 ```
-project/
+simple-go-http-api/
 ├── main.go       # Main server setup and routing
 ├── handlers.go   # HTTP handler functions
+├── api.http      # REST Client test file
 └── README.md     # This file
 ```
 
@@ -33,6 +46,10 @@ project/
    ```bash
    go run .
    ```
+   or 
+   ```
+   go run main.go handlers.go
+   ```
 
 3. You should see:
    ```
@@ -41,13 +58,13 @@ project/
 
 4. The server is now running at `http://localhost:8080`
 
-## Example Requests
+## API Endpoints
 
 ### Root Endpoint
 
 **Request:**
 ```bash
-curl http://localhost:8080/
+GET http://localhost:8080/
 ```
 
 **Response:**
@@ -57,13 +74,15 @@ curl http://localhost:8080/
 }
 ```
 
+**Status Code:** 200 OK
+
 ---
 
 ### Health Check Endpoint
 
 **Request:**
 ```bash
-curl http://localhost:8080/health
+GET http://localhost:8080/health
 ```
 
 **Response:**
@@ -73,13 +92,15 @@ curl http://localhost:8080/health
 }
 ```
 
+**Status Code:** 200 OK
+
 ---
 
 ### Status Endpoint (with Uptime)
 
 **Request:**
 ```bash
-curl http://localhost:8080/status
+GET http://localhost:8080/status
 ```
 
 **Response:**
@@ -90,15 +111,17 @@ curl http://localhost:8080/status
 }
 ```
 
+**Status Code:** 200 OK
+
 The uptime shows how long the service has been running since it started.
 
 ---
 
-### Hello Endpoint (with name parameter)
+### Hello Endpoint (Query Parameters - GET)
 
-**Request:**
+**Success Request:**
 ```bash
-curl "http://localhost:8080/hello?name=Alice"
+GET http://localhost:8080/hello?name=Alice
 ```
 
 **Response:**
@@ -108,31 +131,17 @@ curl "http://localhost:8080/hello?name=Alice"
 }
 ```
 
-**Another example:**
+**Status Code:** 200 OK
+
+**Error Request (missing name):**
 ```bash
-curl "http://localhost:8080/hello?name=John"
+GET http://localhost:8080/hello
 ```
 
 **Response:**
 ```json
 {
-  "message": "Hello, John!\n"
-}
-```
-
----
-
-### Hello Endpoint (without name parameter)
-
-**Request:**
-```bash
-curl http://localhost:8080/hello
-```
-
-**Response:**
-```json
-{
-  "error": "name parameter is required"
+  "error": "Name is required"
 }
 ```
 
@@ -140,28 +149,206 @@ curl http://localhost:8080/hello
 
 ---
 
-## Testing in Browser
+### Greet Endpoint (JSON Body - POST)
 
-You can also test these endpoints directly in your web browser:
+**Success Request:**
+```bash
+POST http://localhost:8080/greet
+Content-Type: application/json
+
+{
+  "name": "Alice"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Hello Alice"
+}
+```
+
+**Status Code:** 200 OK
+
+**Error Request (missing name):**
+```bash
+POST http://localhost:8080/greet
+Content-Type: application/json
+
+{
+  "name": ""
+}
+```
+
+**Response:**
+```json
+{
+  "error": "Name is required"
+}
+```
+
+**Status Code:** 400 Bad Request
+
+**Error Request (invalid JSON):**
+```bash
+POST http://localhost:8080/greet
+Content-Type: application/json
+
+{invalid json}
+```
+
+**Response:**
+```json
+{
+  "error": "Invalid JSON body"
+}
+```
+
+**Status Code:** 400 Bad Request
+
+**Error Request (wrong HTTP method):**
+```bash
+GET http://localhost:8080/greet
+```
+
+**Response:**
+```json
+{
+  "error": "Only POST method is allowed"
+}
+```
+
+**Status Code:** 405 Method Not Allowed
+
+---
+
+## Testing the API
+
+### Option 1: Using the Browser (GET requests only)
 
 - Root: `http://localhost:8080/`
 - Health check: `http://localhost:8080/health`
 - Status with uptime: `http://localhost:8080/status`
 - Hello with name: `http://localhost:8080/hello?name=YourName`
 
+### Option 2: Using curl (Command Line)
+
+**GET requests:**
+```bash
+curl http://localhost:8080/hello?name=Alice
+```
+
+**POST requests:**
+```bash
+curl -X POST http://localhost:8080/greet \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice"}'
+```
+
+### Option 3: Using VS Code REST Client Extension
+
+1. Install the "REST Client" extension in VS Code
+2. Open the `api.http` file
+3. Click "Send Request" above any request
+4. View the response in the split panel
+
+The `api.http` file includes test cases for all endpoints with various scenarios.
+
+### Option 4: Using Postman
+
+1. Download Postman from https://www.postman.com/downloads/
+2. Create requests for each endpoint
+3. Set the appropriate HTTP method (GET or POST)
+4. Add request body for POST requests
+
 ## Response Format
 
-All endpoints return JSON responses with appropriate `Content-Type: application/json` headers.
+All endpoints return JSON responses with appropriate headers:
+- `Content-Type: application/json`
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+| Status Code | Meaning | When Used |
+|-------------|---------|-----------|
+| 200 | OK | Request succeeded |
+| 400 | Bad Request | Invalid input (missing parameters, invalid JSON) |
+| 405 | Method Not Allowed | Wrong HTTP method used |
+| 500 | Internal Server Error | Server error (not currently implemented) |
+
+All errors return a consistent JSON format:
+```json
+{
+  "error": "Error message here"
+}
+```
+
+## Code Structure
+
+### Main Components
+
+**`main.go`**
+- Server initialization
+- Route registration
+- Port configuration
+
+**`handlers.go`**
+- Request handler functions
+- JSON encoding/decoding
+- Error handling logic
+- Data structures (User, StatusResponse, errorResponse)
+
+**`api.http`**
+- Test cases for all endpoints
+- Example requests for development
+
+### Key Functions
+
+- `writeError()` - Reusable function for sending error responses
+- `getRoot()` - Handles root endpoint
+- `getHealth()` - Health check endpoint
+- `getStatus()` - Service status with uptime
+- `getHello()` - Greeting from query parameters
+- `getGreet()` - Greeting from JSON body with POST validation
 
 ## Stopping the Server
 
 Press `Ctrl + C` in the terminal where the server is running.
 
-## API Summary
+## API Summary Table
 
-| Endpoint | Method | Parameters | Success Response | Error Response |
-|----------|--------|------------|------------------|----------------|
-| `/` | GET | None | `{"message": "Welcome..."}` | - |
-| `/health` | GET | None | `{"status": "healthy"}` | - |
-| `/status` | GET | None | `{"service": "running", "uptime": "..."}` | - |
-| `/hello` | GET | `name` (required) | `{"message": "Hello, {name}!"}` | `{"error": "name parameter is required"}` (400) |
+| Endpoint | Method | Parameters | Content-Type | Success Response | Error Codes |
+|----------|--------|------------|--------------|------------------|-------------|
+| `/` | GET | None | application/json | `{"message": "Welcome..."}` | - |
+| `/health` | GET | None | application/json | `{"status": "healthy"}` | - |
+| `/status` | GET | None | application/json | `{"service": "running", "uptime": "..."}` | - |
+| `/hello` | GET | `name` (query) | application/json | `{"message": "Hello, {name}!"}` | 400 |
+| `/greet` | POST | `{"name": "..."}` (body) | application/json | `{"message": "Hello {name}"}` | 400, 405 |
+
+## Learning Concepts Demonstrated
+
+This project demonstrates:
+- Setting up an HTTP server in Go
+- Creating RESTful API endpoints
+- Handling different HTTP methods (GET, POST)
+- Parsing query parameters
+- Parsing JSON request bodies
+- Encoding JSON responses
+- Error handling with proper status codes
+- Code organization with multiple files
+- Using structs for structured data
+- Request validation
+- Testing APIs with REST Client
+
+## Next Steps
+
+Potential enhancements:
+- Add more endpoints (UPDATE, DELETE)
+- Connect to a database
+- Add authentication/authorization
+- Add request logging middleware
+- Add unit tests
+- Add environment configuration
+- Implement graceful shutdown
+- Add rate limiting
