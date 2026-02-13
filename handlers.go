@@ -8,6 +8,22 @@ import (
 
 )
 
+type User struct {
+	Name string  `json:"name"`
+
+}
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+func writeError( w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(errorResponse{
+		Error: message,
+	})
+}
+
 func getRoot(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -16,14 +32,32 @@ func getRoot(w http.ResponseWriter, _ *http.Request) {
 	json.NewEncoder(w).Encode(helloHome)
 }
 
+func getGreet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "Only POST method allowed")
+	}
+	defer r.Body.Close()
+
+	var person User
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&person); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid JSON body")
+		return
+	}
+	if person.Name == ""{
+		writeError(w, http.StatusBadRequest, "Name is required")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message":"Hello " + person.Name,
+	})
+}
+
 func getHello(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
-	w.Header().Set("Content-Type", "application/JSON")
-	w.WriteHeader(http.StatusBadRequest)
-	// w.Write([]byte("Error: name parameter is required"))
-	errorData := map[string]string {"error":"name parameter is required"}
-	json.NewEncoder(w).Encode(errorData)
+		writeError(w, http.StatusBadRequest, "Name is required")
 		return
 	}
 
@@ -49,7 +83,6 @@ func getStatus(w http.ResponseWriter, r *http.Request) {
 	uptime := time.Since(startTime)
 
 	w.Header().Set("Content-Type", "application/json")
-
 	response := StatusResponse {
 		Service:"running",
 		Uptime: uptime.String(),
