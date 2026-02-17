@@ -4,16 +4,46 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	//"strconv"
+	"sync"
 	"time"
 
 )
 
 type User struct {
+	ID   int64    `json:"id"`
 	Name string  `json:"name"`
-
+	CreatedAt time.Time `json:"created_at"`
 }
+
 type errorResponse struct {
 	Error string `json:"error"`
+}
+
+type UserStore struct {
+	mu sync.RWMutex
+	users map[int64] *User
+	nextID int64
+}
+
+var store = &UserStore{ //REVISIT!!!!!
+	users: make(map[int64]*User),
+	nextID: 1,
+}
+func (s *UserStore) Create(u *User){
+	s.mu.Lock() //prevents concurrent writes
+	defer s.mu.Unlock()//unlock even in panic
+
+	u.ID = s.nextID
+	s.nextID++
+
+	s.users[u.ID] = u
+}
+func (s *UserStore) GetById(id int64)(* User, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	u, ok := s.users[id]
+	return u, ok
 }
 
 func writeError( w http.ResponseWriter, status int, message string) {
@@ -32,9 +62,10 @@ func getRoot(w http.ResponseWriter, _ *http.Request) {
 	json.NewEncoder(w).Encode(helloHome)
 }
 
-func getGreet(w http.ResponseWriter, r *http.Request) {
+func postGreet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "Only POST method allowed")
+		return
 	}
 	defer r.Body.Close()
 
@@ -54,6 +85,28 @@ func getGreet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func postUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "Only POST method allowed")
+		return
+	}
+	defer r.Body.Close()
+
+	var person User
+	decoder :=  json.NewDecoder(r.Body)
+	if err := decoder.Decode(&person); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid JSON body")
+		return
+	}
+	if person.Name == ""{
+		writeError(w, http.StatusBadRequest, "Name is required")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated) //201 created
+	json.NewEncoder(w).Encode(person)
+}
+
 func getHello(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
@@ -63,6 +116,7 @@ func getHello(w http.ResponseWriter, r *http.Request) {
 
 	greeting := fmt.Sprintf("Hello, %s!\n", name)
 	helloData := map[string]string{"message": greeting}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(helloData)
 }
 
