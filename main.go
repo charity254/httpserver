@@ -13,6 +13,7 @@ func main() {
 	http.HandleFunc("/hello", getHello)
 	http.HandleFunc("/status", getStatus)
 	http.HandleFunc("/greet", postGreet)
+	http.HandleFunc("/users", handleUsers)
 
 	fmt.Println("Server starting on http://localhost:8080/")
 	http.ListenAndServe(":8080", nil)
